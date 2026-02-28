@@ -1,8 +1,8 @@
 # Headphones 3D Player in Odin
-It takes a music WAV or MP3 file that is listenned on headphones, from a sound inside your head into a holographic, 3D wide stage like a 3D speakers sound in front of you in the same headphones.
+It takes a music WAV, MP3, FLAC file that is listenned on headphones, from a sound inside your head into a holographic, 3D wide stage like a 3D speakers sound in front of you in the same headphones.
 
 ## Desciption
-This simple program that has 2 modes, the first one the has a player of MP3 and WAV files with 3D speaker like on headphones, that holografic, with a wide stage and music in front of you, instead inside your head. <br>
+This simple program that has 2 modes, the first one the has a player of MP3, WAV and FLAC files with 3D speaker like on headphones, that holografic, with a wide stage and music in front of you, instead inside your head. <br>
 The second mode is to process a music WAV file that is normally more or less inside your head, depending if you are leastening with planar magnetics or dynamic headphones, and puts the sound in a 3D stage in front of you. You can tune the parameters for your head size and for you headphones.<br>
 I tryed with HIFIman Edition XS and with Beyerdynamics DT990 Pro. And both of them, at least to my ears become better with this effect, and much less tiaring when used for a long time.
 This is made in the Odin programming language and uses the miniaudio API that already comes with Odin, I developed and tested it on Linux.
@@ -19,15 +19,15 @@ In the player mode it can make the following sound simulations:
 ==>> For the player:
 
   Usage:
-    ./headphones_3d_player.exe  bla.mp3 --3d_stage
-    ./headphones_3d_player.exe  bla.mp3 --3d_stage_and_tubes
-    ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes
-    ./headphones_3d_player.exe  bla.wav --original
+    ./headphones_3d_player.exe  bla.mp3  --3d_stage
+    ./headphones_3d_player.exe  bla.mp3  --3d_stage_and_tubes
+    ./headphones_3d_player.exe  bla.wav  --no_3d_stage_and_tubes
+    ./headphones_3d_player.exe  bla.flac --original
 
-    ./headphones_3d_player.exe  bla.mp3 --3d_stage              --holographic 0.5 --stage 0.35 --crossfeed 0.5
-    ./headphones_3d_player.exe  bla.wav --3d_stage_and_tubes    --holographic 0.5 --stage 0.35 --crossfeed 0.5
-    ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5
-    ./headphones_3d_player.exe  bla.wav --original              --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.mp3  --3d_stage              --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.wav  --3d_stage_and_tubes    --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.flac --no_3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.wav  --original              --holographic 0.5 --stage 0.35 --crossfeed 0.5
 
 ==>> For processing a WAV file and generating a different output file:
 

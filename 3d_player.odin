@@ -11,15 +11,15 @@
   ==>> For the player:
 
     Usage:
-      ./headphones_3d_player.exe  bla.mp3 --3d_stage
-      ./headphones_3d_player.exe  bla.mp3 --3d_stage_and_tubes
-      ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes
-      ./headphones_3d_player.exe  bla.wav --original
+      ./headphones_3d_player.exe  bla.mp3  --3d_stage
+      ./headphones_3d_player.exe  bla.mp3  --3d_stage_and_tubes
+      ./headphones_3d_player.exe  bla.wav  --no_3d_stage_and_tubes
+      ./headphones_3d_player.exe  bla.flac --original
 
-      ./headphones_3d_player.exe  bla.mp3 --3d_stage              --holographic 0.5 --stage 0.35 --crossfeed 0.5
-      ./headphones_3d_player.exe  bla.wav --3d_stage_and_tubes    --holographic 0.5 --stage 0.35 --crossfeed 0.5
-      ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5
-      ./headphones_3d_player.exe  bla.wav --original              --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.mp3  --3d_stage              --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.wav  --3d_stage_and_tubes    --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.flac --no_3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.wav  --original              --holographic 0.5 --stage 0.35 --crossfeed 0.5
 
   ==>> For processing a WAV file and generating a different output file:
 
@@ -215,16 +215,16 @@ main :: proc() {
 
     print_usage :: proc ( ) {
 
-        fmt.printfln( "\n==>> For the player:" )
+        fmt.printfln( "\n==>> For the player .wav, .mp3 and .flac :" )
         fmt.printfln( "\n  Usage:" )
 
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --3d_stage" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --3d_stage_and_tubes" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --original" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3  --3d_stage" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3  --3d_stage_and_tubes" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.flac --no_3d_stage_and_tubes" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav  --original" )
 
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --3d_stage           --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3  --3d_stage           --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.flac --3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
 
         fmt.printfln( "\n==>> For processing a WAV file:" )
         fmt.printfln( "\n  Usage:" )
