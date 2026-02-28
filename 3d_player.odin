@@ -1032,7 +1032,7 @@ default_tube_hpa_params :: proc ( ) ->
 		sag_amount         = 0.11,   // shared envelope -> tiny PSU-like softening
 		env_attack_hz      = 12.0,
 		env_release_hz     = 2.0,
-		dc_block_hz        = 15.0,   //  4.0 // To have less bass, put 15 or 25.
+		dc_block_hz        = 17.0,   // 15 //  4.0 // To have less bass, put 15 or 25.
 		post_smooth_hz     = 18000.0,
 		output_trim_db     = -0.75,
 	}
