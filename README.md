@@ -6,20 +6,34 @@ This simple program that has 2 modes, the first one the has a player of MP3 and 
 The second mode is to process a music WAV file that is normally more or less inside your head, depending if you are leastening with planar magnetics or dynamic headphones, and puts the sound in a 3D stage in front of you. You can tune the parameters for your head size and for you headphones.<br>
 I tryed with HIFIman Edition XS and with Beyerdynamics DT990 Pro. And both of them, at least to my ears become better with this effect, and much less tiaring when used for a long time.
 This is made in the Odin programming language and uses the miniaudio API that already comes with Odin, I developed and tested it on Linux.
+In the player mode it can make the following sound simulations:
+
+1. ```--3d_stage```
+2. ```--3d_stage_and_tubes```
+3. ```--no_3d_stage_and_tubes```
+4. ```--original```
 
 ## Usage
 
 ```
 ==>> For the player:
+
   Usage:
-    ./headphones_3d_player.exe  bla.mp3
-    ./headphones_3d_player.exe  bla.wav
-    ./headphones_3d_player.exe  bla.mp3 --holographic 0.5 --stage 0.35 --crossfeed 0.5
-    ./headphones_3d_player.exe  bla.wav --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.mp3 --3d_stage
+    ./headphones_3d_player.exe  bla.mp3 --3d_stage_and_tubes
+    ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes
+    ./headphones_3d_player.exe  bla.wav --original
+
+    ./headphones_3d_player.exe  bla.mp3 --3d_stage              --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.wav --3d_stage_and_tubes    --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5
+    ./headphones_3d_player.exe  bla.wav --original              --holographic 0.5 --stage 0.35 --crossfeed 0.5
 
 ==>> For processing a WAV file and generating a different output file:
+
   Usage:
-    ./headphones_3d_player.exe  input_file.wav output_file.wav
+    ./headphone_3d_player.exe  input_file.wav output_file.wav
+
 ```
 
 ## The 3 parameters that you can change are

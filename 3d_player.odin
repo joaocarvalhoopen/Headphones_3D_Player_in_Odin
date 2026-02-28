@@ -9,15 +9,23 @@
 # Usage
 
   ==>> For the player:
-  Usage:
-      ./headphone_3d_player.exe  bla.mp3
-      ./headphone_3d_player.exe  bla.wav
-      ./headphone_3d_player.exe  bla.mp3 --holographic 0.5 --stage 0.35 --crossfeed 0.5
-      ./headphone_3d_player.exe  bla.wav --holographic 0.5 --stage 0.35 --crossfeed 0.5
+
+    Usage:
+      ./headphones_3d_player.exe  bla.mp3 --3d_stage
+      ./headphones_3d_player.exe  bla.mp3 --3d_stage_and_tubes
+      ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes
+      ./headphones_3d_player.exe  bla.wav --original
+
+      ./headphones_3d_player.exe  bla.mp3 --3d_stage              --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.wav --3d_stage_and_tubes    --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5
+      ./headphones_3d_player.exe  bla.wav --original              --holographic 0.5 --stage 0.35 --crossfeed 0.5
 
   ==>> For processing a WAV file and generating a different output file:
-  Usage:
+
+    Usage:
       ./headphone_3d_player.exe  input_file.wav output_file.wav
+
 
 
 
@@ -107,6 +115,7 @@ import "base:runtime"
 import "core:fmt"
 import "core:os"
 import "core:math"
+import "core:strings"
 import "core:strconv"
 import "core:mem"
 
@@ -161,22 +170,21 @@ main :: proc() {
 	args := runtime.args__
 
 	// Process WAV file case.
-	if len( args ) == 3 {
+	if len( args ) == 3 && !strings.starts_with( os.args[2], "--" ) {
 
 		process_file_main( )
 		// We will terminate here.
 		os.exit( 0 )
 	}
 
-
-	if len( args ) < 2 {
+	if len( args ) <= 2 {
 
 		fmt.printfln( "\nERROR : No input WAV or MP3 file." )
 		print_usage( )
 		os.exit( -1 )
 	}
 
-	if len( args ) > 3 && len( args ) < 8 || len( args ) > 8  {
+	if len( args ) > 4 && len( args ) < 9 || len( args ) > 9  {
 
 		fmt.printfln( "\nERROR : Invalid or incomplete number of parameters." )
 		print_usage( )
@@ -201,14 +209,22 @@ main :: proc() {
     // crossfeed_level    : f64 = 0.4  // 0.6  // 0.4
 
 
+    process_tubes_headphones_amp_sound := false
+
+    process_3D_sound                   := true
+
     print_usage :: proc ( ) {
 
         fmt.printfln( "\n==>> For the player:" )
         fmt.printfln( "\n  Usage:" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
-        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
+
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --3d_stage" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --3d_stage_and_tubes" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --no_3d_stage_and_tubes" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --original" )
+
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.mp3 --3d_stage           --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
+        fmt.printfln( "    ./headphones_3d_player.exe  bla.wav --3d_stage_and_tubes --holographic 0.5 --stage 0.35 --crossfeed 0.5" )
 
         fmt.printfln( "\n==>> For processing a WAV file:" )
         fmt.printfln( "\n  Usage:" )
@@ -216,9 +232,39 @@ main :: proc() {
     }
 
     // Player case with custom parameters.
-	if len( args ) == 8 {
+	if len( args ) == 3 || len( args ) == 9  {
 
-		for i := 2; i < 7; i += 1 {
+		my_tag  := args[ 2 ]
+
+		switch my_tag {
+
+			case "--3d_stage" :
+				process_tubes_headphones_amp_sound = false
+                process_3D_sound                   = true
+
+			case "--3d_stage_and_tubes" :
+				process_tubes_headphones_amp_sound = true
+                process_3D_sound                   = true
+
+			case "--no_3d_stage_and_tubes" :
+				process_tubes_headphones_amp_sound = true
+                process_3D_sound                   = false
+
+			case "--original" :
+				process_tubes_headphones_amp_sound = false
+                process_3D_sound                   = false
+
+			case :
+				fmt.printfln( "\nERROR : Unknown option [ %s ]\nuse:\n  --3d_stage\n  --3d_stage_and_tubes\n  --no_3d_stage_and_tubes\n  --original\n", my_tag )
+				os.exit( -1 )
+		}
+	}
+
+
+    // Player case with custom parameters.
+	if len( args ) == 9 {
+
+		for i := 3; i < 8; i += 1 {
 
 			my_tag  := args[ i ]
 			val_str := string( args[ i + 1 ] )
@@ -268,6 +314,7 @@ main :: proc() {
 						os.exit( -1 )
 					}
 					i += 1
+
 
 				case :
 					fmt.printfln( "\nERROR: cmd line parsing unknown %s", val_str )
@@ -360,23 +407,52 @@ main :: proc() {
 	}
 */
 
-	audio_data_in  := full_buffer
-	audio_data_out : [ ]f32 = processing_3d_audio_space( holographic_effect,
-                                				         soundstage_effect,
-							                             crossfeed_level,
-							                             int( sample_rate ),
-							                             int( total_samples ),
-							                             audio_data_in )
+	if process_tubes_headphones_amp_sound == true {
 
-	delete( full_buffer ) // Remember to free the memory later!
-    full_buffer = audio_data_out
+
+		// Allocate
+		audio_data_f64 := make( [ ]f64, len( full_buffer ) )
+	 	defer delete( audio_data_f64 )
+
+		// Cast and Copy.
+		for sample, i in full_buffer {
+
+			audio_data_f64[ i ] = f64( sample )
+		}
+
+		frames := int( total_samples ) / 2
+		apply_hifi_tube_headphone_amp( audio_data_f64,         // They will be modified in place.
+									   u32( sample_rate ),
+                                       frames )             // Number of samples per channel.
+
+		// Cast and copy.
+		for sample, i in audio_data_f64 {
+
+			full_buffer[ i ] = f32( sample )
+		}
+
+		fmt.println( "\nTubes sound amplifier applyed sucessefully." )
+    }
+
     defer delete( full_buffer )
 
+    if process_3D_sound == true {
 
+		audio_data_in  := full_buffer
+		audio_data_out : [ ]f32 = processing_3d_audio_space( holographic_effect,
+	                                				         soundstage_effect,
+								                             crossfeed_level,
+								                             int( sample_rate ),
+								                             int( total_samples ),
+								                             audio_data_in )
 
+		delete( full_buffer ) // Remember to free the memory later!
+	    full_buffer = audio_data_out
 
+		fmt.println( "\n3D Space filter applied successfully." )
+    }
 
-	fmt.println( "\n3D Space filter applied successfully.\n" )
+    fmt.print( "\n" )
 
 	// 6. Setup our custom data context
 	audio_ctx := Audio_Data {
@@ -544,7 +620,9 @@ get_track_time :: proc ( cur_pos     : int,
 }
 
 //
-// ------------------------------------------------
+//
+// --------  3D sound holographic sound stage simulatation  ----------
+//
 //
 
 processing_3d_audio_space :: proc ( holographic_effect  : f64,
@@ -876,4 +954,286 @@ process_file_main :: proc( ) {
 
     os.write_entire_file( output_file, output_bytes )
     fmt.printfln( "Processed file saved to:\n    %s", output_file )
+}
+
+
+
+//
+//
+// --------  Tube amp simulatation  ------------------
+//
+//
+
+
+/*
+Stereo_Wav :: struct {
+
+	sample_rate:     u32,
+	frames:          int,
+	samples:         []f64, // interleaved stereo, normalized-ish, internal processing in f64
+}
+
+*/
+
+
+Tube_HPA_Params :: struct {
+
+	input_gain_db  : f64,
+	stage1_drive   : f64,
+	stage2_drive   : f64,
+	base_bias      : f64,
+	bias_from_env  : f64,
+	sag_amount     : f64,
+	env_attack_hz  : f64,
+	env_release_hz : f64,
+	dc_block_hz    : f64,
+	post_smooth_hz : f64,
+	output_trim_db : f64,
+}
+
+DC_Blocker :: struct {
+
+	x1 : f64,
+	y1 : f64,
+	r  : f64,
+}
+
+One_Pole_LP :: struct {
+
+	y : f64,
+	a : f64,
+}
+
+Tube_Channel_State :: struct {
+
+	dc     : DC_Blocker,
+	smooth : One_Pole_LP,
+}
+
+Tube_Processor_State :: struct {
+
+	left      : Tube_Channel_State,
+	right     : Tube_Channel_State,
+	env       : f64,
+	attack_a  : f64,
+	release_a : f64,
+}
+
+default_tube_hpa_params :: proc ( ) ->
+                                Tube_HPA_Params {
+
+	return Tube_HPA_Params{
+
+		input_gain_db      = 1.4,    // subtle input lift into the nonlinear stage
+		stage1_drive       = 1.18,
+		stage2_drive       = 1.07,
+		base_bias          = 0.018,  // asymmetry -> more tube-like even harmonics
+		bias_from_env      = 0.028,  // small program-dependent bias movement
+		sag_amount         = 0.11,   // shared envelope -> tiny PSU-like softening
+		env_attack_hz      = 12.0,
+		env_release_hz     = 2.0,
+		dc_block_hz        = 4.0,
+		post_smooth_hz     = 18000.0,
+		output_trim_db     = -0.75,
+	}
+}
+
+db_to_gain :: proc ( db : f64 ) ->
+                     f64 {
+
+	return math.exp( db * math.LN10 / 20.0 )
+}
+
+one_pole_alpha :: proc ( fc : f64,
+	                     fs : f64 ) ->
+                         f64 {
+
+	if fs <= 1.0 {
+
+		return 1.0
+	}
+
+	clamped_fc := math.clamp( fc, 0.001, 0.45 * fs )
+	return 1.0 - math.exp( -2.0 * math.PI * clamped_fc / fs )
+}
+
+make_dc_blocker :: proc ( fc : f64,
+	                      fs : f64 ) ->
+                          DC_Blocker {
+
+	clamped_fc := math.clamp( fc, 0.001, 0.45 * fs )
+	r := math.exp( -2.0 * math.PI * clamped_fc / fs )
+	return DC_Blocker{ r = r }
+}
+
+process_dc_blocker :: proc ( state : ^DC_Blocker,
+	                         x     : f64 ) ->
+                             f64 {
+
+	y        := x - state.x1 + state.r * state.y1
+	state.x1  = x
+	state.y1  = y
+	return y
+}
+
+make_one_pole_lp :: proc ( fc : f64,
+	                       fs : f64 ) ->
+                           One_Pole_LP {
+
+	return One_Pole_LP{ a = one_pole_alpha( fc, fs ) }
+}
+
+process_one_pole_lp :: proc ( state : ^One_Pole_LP,
+	                          x     : f64 ) ->
+                              f64 {
+
+	state.y += state.a * ( x - state.y )
+	return state.y
+}
+
+make_tube_processor_state :: proc ( params : Tube_HPA_Params,
+	                                fs     : f64 ) ->
+                                    Tube_Processor_State {
+
+	post_fc := math.clamp( params.post_smooth_hz, 1000.0, 0.45 * fs )
+
+	return Tube_Processor_State{
+
+		left = Tube_Channel_State{
+
+			dc     = make_dc_blocker( params.dc_block_hz, fs ),
+			smooth = make_one_pole_lp( post_fc, fs ),
+		},
+		right = Tube_Channel_State{
+
+			dc     = make_dc_blocker( params.dc_block_hz, fs ),
+			smooth = make_one_pole_lp( post_fc, fs ),
+		},
+		attack_a  = one_pole_alpha( params.env_attack_hz,  fs ),
+		release_a = one_pole_alpha( params.env_release_hz, fs ),
+	}
+}
+
+tube_shaper :: proc ( x     : f64,
+	                  drive : f64,
+                      bias  : f64 ) ->
+                      f64 {
+
+	// Asymmetric soft saturation.
+	return math.tanh( drive * x + bias ) - math.tanh( bias )
+}
+
+process_tube_channel :: proc ( ch       : ^Tube_Channel_State,
+							   x        : f64,
+							   env      : f64,
+							   sag_gain : f64,
+							   params   : Tube_HPA_Params ) ->
+                               f64 {
+
+	x0 := process_dc_blocker( & ch.dc, x )
+
+	bias1 := params.base_bias + params.bias_from_env * env
+	bias2 := 0.5 * bias1
+
+	y1 := tube_shaper( x0, params.stage1_drive * sag_gain,             bias1 )
+	y2 := tube_shaper( y1, params.stage2_drive * ( 0.92 + 0.08 * sag_gain ), bias2 )
+
+	// Gentle smoothing to kill a bit of “digital edge” without sounding dull.
+	s := process_one_pole_lp( & ch.smooth, y2 )
+
+	// Blend mostly direct stage output with a little smoothed content.
+	return 0.84 * y2 + 0.16 * s
+}
+
+process_tube_step :: proc ( state  : ^Tube_Processor_State,
+						    l_in   : f64,
+							r_in   : f64,
+						    params : Tube_HPA_Params ) ->
+                          ( f64, f64 ) {
+
+	level := 0.5 * ( math.abs( l_in ) + math.abs( r_in ) )
+	a := state.release_a
+	if level > state.env {
+
+		a = state.attack_a
+	}
+	state.env += a * ( level - state.env )
+
+	// Shared envelope: tiny power-supply “give”.
+	sag_gain := 1.0 / ( 1.0 + params.sag_amount * state.env )
+
+	l_out := process_tube_channel( & state.left,  l_in, state.env, sag_gain, params )
+	r_out := process_tube_channel( & state.right, r_in, state.env, sag_gain, params )
+
+	return l_out, r_out
+}
+
+apply_hifi_tube_headphone_amp :: proc ( samples     : [ ]f64,       // They will be modified in place.
+	                                                                // Interleaved stereo, normalized-ish, internal processing in f64
+	                                    sample_rate : u32,
+                                        frames      : int ) {       // Number of samples per channel.
+
+
+	if frames <= 0 || len( samples ) < 2 {
+
+		return
+	}
+
+	params := default_tube_hpa_params( )
+
+	input_gain  := db_to_gain( params.input_gain_db )
+	output_gain := db_to_gain( params.output_trim_db )
+
+	fs_native := f64( sample_rate )
+	fs_os     := 2.0 * fs_native // compact 2x oversampling by interpolation
+
+	tube_state := make_tube_processor_state( params, fs_os )
+
+	for i in 0 ..< frames {
+
+		l0 := samples[ 2 * i + 0 ]
+		r0 := samples[ 2 * i + 1 ]
+
+		l1 := l0
+		r1 := r0
+		if i + 1 < frames {
+
+			l1 = samples[ 2 * ( i + 1 ) + 0 ]
+			r1 = samples[ 2 * ( i + 1 ) + 1 ]
+		}
+
+		// 2x oversampling via linear interpolation:
+		// step A = current sample, step B = midpoint to next sample
+		a_l, a_r := process_tube_step( & tube_state, l0 * input_gain,                  r0 * input_gain,                params )
+		b_l, b_r := process_tube_step( & tube_state, 0.5 * ( l0 + l1 ) * input_gain,   0.5*( r0 + r1 ) * input_gain,   params )
+
+		l := 0.5 * ( a_l + b_l )
+		r := 0.5 * ( a_r + b_r )
+
+		l *= output_gain
+		r *= output_gain
+
+		samples[ 2 * i + 0 ] = l
+		samples[ 2 * i + 1 ] = r
+	}
+
+	// Safety normalization only if needed.
+	peak := 0.0
+	for s in samples {
+
+		a := math.abs(s)
+		if a > peak {
+
+			peak = a
+		}
+	}
+
+	if peak > 0.98 {
+
+		g := 0.98 / peak
+		for i in 0 ..< len( samples ) {
+
+			samples[ i ] *= g
+		}
+	}
 }
