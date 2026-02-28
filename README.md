@@ -30,6 +30,18 @@ soundstage_effect  : f64 = 0.4  // -1.0 to 1.0 ( Width / Mid-Side ratio )
 crossfeed_level    : f64 = 0.4  
 ```
 
+## Controls inside Player
+
+```
+Press each input key or value followed by an enter.
+
+   Press "q" or "Q" to quit.
+   Press "1" to shift to pos 10 %, can be 0 to 9.
+   Press "33" to shift to pos 33 %, can be 2 digits of 01 to 99.
+   Press Left Arrow to shift current offset 10 seconds less.
+   Press Right Arrow to shift current offset 10 seconds more.
+```
+
 ## The audio processing pipeline
 
 ### The High-Precision Audio Engine ( Data Conversion )
