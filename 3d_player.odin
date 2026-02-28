@@ -156,7 +156,7 @@ data_callback :: proc "c" ( device      : ^ma.device,
 
 main :: proc() {
 
-
+	start_offset_perc : f64 = 0.0
 
 	args := runtime.args__
 
@@ -230,7 +230,7 @@ main :: proc() {
 					if ok {
 
 						holographic_effect = val_f64
-						fmt.printfln( "--holographic %f", holographic_effect )
+						// fmt.printfln( "--holographic %f", holographic_effect )
 					} else {
 
 						fmt.printfln( "\nERROR : parsing --holographic %s", val_str )
@@ -245,7 +245,7 @@ main :: proc() {
 					if ok {
 
 						soundstage_effect = val_f64
-						fmt.printfln( "--stage %f", soundstage_effect )
+						// fmt.printfln( "--stage %f", soundstage_effect )
 					} else {
 
 						fmt.printfln( "\nERROR : parsing --stage %s", val_str )
@@ -260,7 +260,7 @@ main :: proc() {
 					if ok {
 
 						crossfeed_level = val_f64
-						fmt.printfln( "--crossfeed %f", crossfeed_level )
+						// fmt.printfln( "--crossfeed %f", crossfeed_level )
 					} else {
 
 						fmt.printfln( "\nERROR : parsing --crossfeed %s", val_str )
@@ -313,7 +313,7 @@ main :: proc() {
 			bits_per_sample = 32
 	}
 
-	fmt.printfln( "Detected %v-bit audio at %v Hz.\n",
+	fmt.printfln( "\nDetected %v-bit audio at %v Hz.\n",
                   bits_per_sample, sample_rate )
 
     fmt.printfln( "Applying DSP... \n    Holographic : %.2f | Soundstage : %.2f | Crossfeed : %.2f\n",
@@ -373,6 +373,9 @@ main :: proc() {
     defer delete( full_buffer )
 
 
+
+
+
 	fmt.println( "\n3D Space filter applied successfully.\n" )
 
 	// 6. Setup our custom data context
@@ -385,11 +388,11 @@ main :: proc() {
 
 	// 7. Setup playback
 	device_config := ma.device_config_init( .playback )
-	device_config.playback.format   = .f32      // Match the forced decoder format
+	device_config.playback.format   = .f32            // Match the forced decoder format
 	device_config.playback.channels = channels
 	device_config.sampleRate        = sample_rate
 	device_config.dataCallback      = data_callback
-	device_config.pUserData         = &audio_ctx // Pass our struct!
+	device_config.pUserData         = & audio_ctx    // Pass our struct!
 
 	device: ma.device
 	if ma.device_init( nil, & device_config, & device ) != .SUCCESS {
@@ -405,11 +408,139 @@ main :: proc() {
 		os.exit( -6 )
 	}
 
-	fmt.printfln( "Press Enter to quit..." )
-	p: [ 1 ]byte
-	os.read( os.stdin, p[ : ] )
+	keys_manual : string = \
+`Press each input key or value followed by an enter.
+
+   Press "q" or "Q" to quit.
+   Press "1" to shift to pos 10 %, can be 0 to 9.
+   Press "33" to shift to pos 33 %, can be 2 digits of 01 to 99.
+   Press Left Arrow to shift current offset 10 seconds less.
+   Press Right Arrow to shift current offset 10 seconds more.`
+
+	fmt.println( keys_manual )
+	fmt.printf( "\n\n" )
+
+	// p : [ 1 ]byte
+	// os.read( os.stdin, p[ : ] )
+
+	for {
+
+		p : [ 2 ]byte
+		os.read( os.stdin, p[ : ] )
+
+
+		my_char     : rune = rune( p[ 0 ] )
+		my_char_int : int = int( my_char )
+
+
+		// fmt.printfln( "%d", my_char_int )
+		switch my_char {
+
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' :
+		    value_f64 : f64 = 0.0
+			tmp_str : string
+			my_char_2 := rune( p[ 1 ] )
+	  		if my_char_2 == '0' ||
+			   my_char_2 == '1' ||
+			   my_char_2 == '2' ||
+			   my_char_2 == '3' ||
+			   my_char_2 == '4' ||
+			   my_char_2 == '5' ||
+			   my_char_2 == '6' ||
+			   my_char_2 == '7' ||
+			   my_char_2 == '8' ||
+			   my_char_2 == '9' {
+
+			    // 2 digits
+				tmp_str = fmt.aprintf( "%c%c", my_char, my_char_2 )
+				value_int, _ := strconv.parse_int( tmp_str, 10 )
+				fmt.printf( "pos %d %% ", value_int )
+				value_f64 = f64( value_int ) * 0.01
+			} else {
+
+				// 1 digits
+				tmp_str = fmt.aprintf( "%c", my_char )
+				value_int, _ := strconv.parse_int( tmp_str, 10 )
+				fmt.printf( "pos %d %% ", value_int * 10  )
+				value_f64 = f64( value_int ) * 0.1
+			}
+
+			// value, _ := strconv.parse_int( tmp_str, 10 )
+			// fmt.printfln( "%s  pos %d %%", tmp_str, value * 10  )
+			audio_ctx.cursor = u64( f64( total_samples ) * 0.5 * value_f64 )
+			time_str : string = get_track_time( int( audio_ctx.cursor ),
+				                                sample_rate )
+            fmt.printfln( "%s", time_str )
+
+
+		case rune( 68 ) :
+			// Left arrow.
+			// Shift offset left.
+			if audio_ctx.cursor >= u64( sample_rate ) * 10 {
+
+				audio_ctx.cursor = audio_ctx.cursor - u64( sample_rate ) * 10 // 10 seconds
+
+				time_str : string = get_track_time( int( audio_ctx.cursor ),
+					                                sample_rate )
+
+				perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+				fmt.printfln( "shift less 10 seconds, position %2.3f %% %s ... ",
+				              perc, time_str )
+			} else {
+
+				audio_ctx.cursor = 0
+
+				time_str : string = get_track_time( int( audio_ctx.cursor ),
+					                                sample_rate )
+
+				perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+				fmt.printfln( "shift to 0 seconds, position %2.3f %% %s ... ",
+				              perc, time_str )
+			}
+
+		case rune( 67 ) :
+			// Right arrow.
+			// Shift offset right.
+			if audio_ctx.cursor <= ( u64( total_samples ) / 2 ) - u64( sample_rate ) {
+
+            	audio_ctx.cursor = audio_ctx.cursor + u64( sample_rate ) * 10 // 10 seconds
+
+                time_str : string = get_track_time( int( audio_ctx.cursor ),
+					                                sample_rate )
+
+                perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+				fmt.printfln( "shift more 10 seconds, position %2.3f %%  %s ... ",
+				              perc, time_str )
+			}
+
+		case 'q', 'Q':
+
+			fmt.printfln( "\n...have a nice rest of day.\n" )
+	        ma.device_uninit( & device )
+		    os.exit( 0 )
+		}
+
+	}
+
+
 
 	ma.device_uninit( & device )
+}
+
+get_track_time :: proc ( cur_pos     : int,
+	                     sample_rate : u32 ) ->
+                       ( track_time : string ) {
+
+    time_sec_f64    : f64 =  f64( cur_pos ) / f64( sample_rate )
+    time_in_sec_int := int( math.round_f64( time_sec_f64 ) )
+
+    hours        : int = int( ( time_sec_f64 / 60 ) / 60 )
+    rest_minutes : int = int( time_sec_f64 / 60 ) - hours * 60
+    minutes      : int = rest_minutes
+    rest_seconds : int = int( time_sec_f64 ) - minutes * 60 - hours * 60
+
+    track_time = fmt.aprintf( "  %dH %dM %dS", hours, minutes, rest_seconds )
+	return track_time
 }
 
 //
