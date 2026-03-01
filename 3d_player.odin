@@ -118,8 +118,25 @@ import "core:math"
 import "core:strings"
 import "core:strconv"
 import "core:mem"
+import "core:time"
+
+import "core:sync"
+import "core:sync/chan"
+import "core:thread"
+
+import "base:intrinsics"
+
+import "core:sys/posix"
 
 import ma "vendor:miniaudio"
+
+// ODIN_OS_tmp :: "WINDOWS"
+
+g_music_has_ended : bool = false
+
+g_music_is_paused : bool =  false
+
+g_old_termios : posix.termios
 
 // Custom struct to pass our fully loaded buffer to the callback
 Audio_Data :: struct {
@@ -142,8 +159,36 @@ data_callback :: proc "c" ( device      : ^ma.device,
 	total_frames    := u64( len( ctx.buffer ) ) / u64( ctx.channels )
 	frames_left     := total_frames - ctx.cursor
 
+	is_paused := intrinsics.volatile_load( & g_music_is_paused )
+    if is_paused {
+
+    	return
+    }
+
 	// Stop playing if we've reached the end of our buffer
-	if frames_left == 0 do return
+	if frames_left == 0 {
+
+		intrinsics.volatile_store( & g_music_has_ended, true )
+
+		context = runtime.default_context()
+
+		// Terminates and closes the audio device.
+		ma.device_uninit( device )
+
+		when ODIN_OS == .Linux {
+		// when ODIN_OS_tmp == "Linux_tmp" {
+
+			fd := posix.FD( posix.STDIN_FILENO )
+			// Reestablishes the normal terminal mode with the enter.
+			posix.tcsetattr( fd, .TCSANOW, & g_old_termios )
+		}
+
+		fmt.printfln( "\n...music file has ended!\n" )
+
+		{ os.exit( 0 ) }
+
+	 	return
+	}
 
 	// Clamp frames so we don't read past the end of our slice
 	if frames_to_write > frames_left {
@@ -163,7 +208,38 @@ data_callback :: proc "c" ( device      : ^ma.device,
 	ctx.cursor += frames_to_write
 }
 
-main :: proc() {
+input_chan: chan.Chan( u8 )
+
+reader_proc :: proc ( ) {
+
+	buf : [ 2 ]u8
+	for {
+
+		n, err := os.read( os.stdin, buf[ : ] )
+		if n > 0 {
+
+			_ = chan.try_send( input_chan, buf[ 0 ] )
+
+			if n > 1 {
+
+				_ = chan.try_send( input_chan, buf[ 1 ] )
+			}
+		}
+
+		/*
+
+		if err != nil {
+
+			break
+		}
+
+		*/
+
+		time.sleep( 10 * time.Millisecond )
+	}
+}
+
+main :: proc ( ) {
 
 	start_offset_perc : f64 = 0.0
 
@@ -491,115 +567,286 @@ main :: proc() {
    Press "1" to shift to pos 10 %, can be 0 to 9.
    Press "33" to shift to pos 33 %, can be 2 digits of 01 to 99.
    Press Left Arrow to shift current offset 10 seconds less.
-   Press Right Arrow to shift current offset 10 seconds more.`
+   Press Right Arrow to shift current offset 10 seconds more.
+   Press SPACE to toggle PAUSE or PLAYING.`
 
 	fmt.println( keys_manual )
 	fmt.printf( "\n\n" )
 
+/*
+	// Standard input file descriptor is 0
+    fd := posix.FD( posix.STDIN_FILENO )
+
+	// 1. Get the current file status flags
+    flags := posix.fcntl(fd, posix.FCNTL_Cmd( posix.F_GETFL ) )
+    if flags == -1 {
+
+        fmt.eprintln("Error: Failed to get current stdin flags.")
+        return
+    }
+
+    // 2. Append the non-blocking flag
+    // Note: Depending on your Odin version, you may need to cast the 3rd argument to an integer type if fcntl is strictly typed.
+    if posix.fcntl(fd, posix.FCNTL_Cmd( posix.F_SETFL ), flags | posix.O_NONBLOCK ) == -1 {
+
+        fmt.eprintln("Error: Failed to set non-blocking mode.")
+        return
+    }
+*/
+
+
+    when ODIN_OS == .Linux {
+    // when ODIN_OS_tmp == "Linux_tmp" {
+
+	    fd := posix.FD( posix.STDIN_FILENO )
+
+	    // --- 1. DISABLE TERMINAL LINE BUFFERING ---
+	    // old_termios : posix.termios
+
+	    // FIX 1: Compare the result against the `.OK` enum instead of 0
+	    if posix.tcgetattr( fd, & g_old_termios ) != .OK {
+
+	        fmt.eprintln("Error: Failed to get terminal attributes.")
+	        return
+	    }
+
+	    g_old_termios.c_lflag += { .ICANON, .ECHO }
+
+
+	    new_termios := g_old_termios
+
+	    // c_lflag is a strongly-typed bit_set.
+	    // We use `-=` to cleanly remove ICANON and ECHO from the set.
+	    new_termios.c_lflag -= { .ICANON, .ECHO }
+
+	    // FIX 3: Use the implicit enum `.TCSANOW` and check against `.OK`
+	    if posix.tcsetattr( fd, .TCSANOW, & new_termios ) != .OK {
+
+	        fmt.eprintln( "Error: Failed to set terminal attributes." )
+	        return
+	    }
+
+	    // Ensure we use `.TCSANOW` in the defer statement as well
+	    defer posix.tcsetattr( fd, .TCSANOW, & g_old_termios )
+
+	    // --- 2. SET STDIN TO NON-BLOCKING ---
+	    flags := posix.fcntl( fd, posix.FCNTL_Cmd( posix.F_GETFL ) )
+	    if flags != -1 {
+
+	        posix.fcntl( fd, posix.FCNTL_Cmd( posix.F_SETFL ), flags | posix.O_NONBLOCK )
+	    }
+
+    }   //  end WHEN LINUX
+
+
 	// p : [ 1 ]byte
 	// os.read( os.stdin, p[ : ] )
 
+	// Creation of a channel between 2 threads ( main thread and the os.read( ) thread ).
+	// Buffered channel.
+	c, err := chan.create( chan.Chan( u8 ), 64, context.allocator )
+	if err != .None {
+
+		fmt.println( "ERROR : channel create failed." )
+		return
+ 	}
+	defer chan.destroy( c )
+
+	input_chan = c
+
+	// _ = thread.create_and_start( reader_proc )
+
+	// detached/"daemon-like"
+	_ = thread.create_and_start( reader_proc,
+	                             nil,
+								 thread.Thread_Priority.Normal,
+								 true )
+
+
 	for {
 
-		p : [ 2 ]byte
-		os.read( os.stdin, p[ : ] )
+			if b1, ok := chan.try_recv( input_chan ); ok {
+
+				p : [ 2 ]byte
+
+				p[ 0 ] = byte( b1 )
+
+				fmt.print( "" )  // Makes the flush
+				// fmt.printfln( "b1 = [ %v ]", b1  )
+
+				/*
+				time.sleep( 300 * time.Millisecond )
+
+				if b2, ok_2 := chan.try_recv( input_chan ); ok_2 {
+
+					p[ 1 ] = byte( b2 )
+
+					fmt.print( "" )  // Makes the flush
+					// fmt.printfln( "b2 = [ %v ]", b2  )
+				}
+				*/
 
 
-		my_char     : rune = rune( p[ 0 ] )
-		my_char_int : int = int( my_char )
+			//	p : [ 2 ]byte
+			//	os.read( os.stdin, p[ : ] )
 
+			my_char     : rune = rune( p[ 0 ] )
+			my_char_int : int = int( my_char )
 
-		// fmt.printfln( "%d", my_char_int )
-		switch my_char {
+			// fmt.printfln( "%d", my_char_int )
+			switch my_char {
 
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' :
-		    value_f64 : f64 = 0.0
-			tmp_str : string
-			my_char_2 := rune( p[ 1 ] )
-	  		if my_char_2 == '0' ||
-			   my_char_2 == '1' ||
-			   my_char_2 == '2' ||
-			   my_char_2 == '3' ||
-			   my_char_2 == '4' ||
-			   my_char_2 == '5' ||
-			   my_char_2 == '6' ||
-			   my_char_2 == '7' ||
-			   my_char_2 == '8' ||
-			   my_char_2 == '9' {
+			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' :
+			    value_f64 : f64 = 0.0
+				tmp_str : string
 
-			    // 2 digits
-				tmp_str = fmt.aprintf( "%c%c", my_char, my_char_2 )
-				value_int, _ := strconv.parse_int( tmp_str, 10 )
-				fmt.printf( "pos %d %% ", value_int )
-				value_f64 = f64( value_int ) * 0.01
-			} else {
+				time.sleep( 350 * time.Millisecond )
 
-				// 1 digits
-				tmp_str = fmt.aprintf( "%c", my_char )
-				value_int, _ := strconv.parse_int( tmp_str, 10 )
-				fmt.printf( "pos %d %% ", value_int * 10  )
-				value_f64 = f64( value_int ) * 0.1
-			}
+				if b2, ok_2 := chan.try_recv( input_chan ); ok_2 {
 
-			// value, _ := strconv.parse_int( tmp_str, 10 )
-			// fmt.printfln( "%s  pos %d %%", tmp_str, value * 10  )
-			audio_ctx.cursor = u64( f64( total_samples ) * 0.5 * value_f64 )
-			time_str : string = get_track_time( int( audio_ctx.cursor ),
-				                                sample_rate )
-            fmt.printfln( "%s", time_str )
+					p[ 1 ] = byte( b2 )
 
+					fmt.print( "" )  // Makes the flush
+					// fmt.printfln( "b2 = [ %v ]", b2  )
+				}
 
-		case rune( 68 ) :
-			// Left arrow.
-			// Shift offset left.
-			if audio_ctx.cursor >= u64( sample_rate ) * 10 {
+				my_char_2 := rune( p[ 1 ] )
+		  		if my_char_2 == '0' ||
+				   my_char_2 == '1' ||
+				   my_char_2 == '2' ||
+				   my_char_2 == '3' ||
+				   my_char_2 == '4' ||
+				   my_char_2 == '5' ||
+				   my_char_2 == '6' ||
+				   my_char_2 == '7' ||
+				   my_char_2 == '8' ||
+				   my_char_2 == '9' {
 
-				audio_ctx.cursor = audio_ctx.cursor - u64( sample_rate ) * 10 // 10 seconds
+				    // 2 digits
+					tmp_str = fmt.aprintf( "%c%c", my_char, my_char_2 )
+					value_int, _ := strconv.parse_int( tmp_str, 10 )
+					fmt.printf( "pos %d %% ", value_int )
+					value_f64 = f64( value_int ) * 0.01
+				} else {
 
+					// 1 digits
+					tmp_str = fmt.aprintf( "%c", my_char )
+					value_int, _ := strconv.parse_int( tmp_str, 10 )
+					fmt.printf( "pos %d %% ", value_int * 10  )
+					value_f64 = f64( value_int ) * 0.1
+				}
+
+				// value, _ := strconv.parse_int( tmp_str, 10 )
+				// fmt.printfln( "%s  pos %d %%", tmp_str, value * 10  )
+				audio_ctx.cursor = u64( f64( total_samples ) * 0.5 * value_f64 )
 				time_str : string = get_track_time( int( audio_ctx.cursor ),
 					                                sample_rate )
+	            fmt.printfln( "%s", time_str )
 
-				perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
-				fmt.printfln( "shift less 10 seconds, position %2.3f %% %s ... ",
-				              perc, time_str )
-			} else {
 
-				audio_ctx.cursor = 0
+			case rune( 68 ) :
+				// Left arrow.
+				// Shift offset left.
+				if audio_ctx.cursor >= u64( sample_rate ) * 10 {
 
-				time_str : string = get_track_time( int( audio_ctx.cursor ),
-					                                sample_rate )
+					audio_ctx.cursor = audio_ctx.cursor - u64( sample_rate ) * 10 // 10 seconds
 
-				perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
-				fmt.printfln( "shift to 0 seconds, position %2.3f %% %s ... ",
-				              perc, time_str )
-			}
+					time_str : string = get_track_time( int( audio_ctx.cursor ),
+						                                sample_rate )
 
-		case rune( 67 ) :
-			// Right arrow.
-			// Shift offset right.
-			if audio_ctx.cursor <= ( u64( total_samples ) / 2 ) - u64( sample_rate ) {
+					perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+					fmt.printfln( "shift less 10 seconds, position %2.3f %% %s ... ",
+					              perc, time_str )
+				} else {
 
-            	audio_ctx.cursor = audio_ctx.cursor + u64( sample_rate ) * 10 // 10 seconds
+					audio_ctx.cursor = 0
+
+					time_str : string = get_track_time( int( audio_ctx.cursor ),
+						                                sample_rate )
+
+					perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+					fmt.printfln( "shift to 0 seconds, position %2.3f %% %s ... ",
+					              perc, time_str )
+				}
+
+			case rune( 67 ) :
+				// Right arrow.
+				// Shift offset right.
+				if audio_ctx.cursor <= ( u64( total_samples ) / 2 ) - u64( sample_rate * 10 ) {
+
+	            	audio_ctx.cursor = audio_ctx.cursor + u64( sample_rate ) * 10 // 10 seconds
+
+	                time_str : string = get_track_time( int( audio_ctx.cursor ),
+						                                sample_rate )
+
+	                perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+					fmt.printfln( "shift more 10 seconds, position %2.3f %%  %s ... ",
+					              perc, time_str )
+				}
+
+			case ' ':
+				// Space - Pause Playing
+				is_paused := intrinsics.volatile_load( & g_music_is_paused )
+                is_paused = !is_paused
+				intrinsics.volatile_store( & g_music_is_paused, is_paused )
+
+                if is_paused == true {
+
+            		fmt.printf( "pause,   " )
+                } else {
+
+       				fmt.printf( "playing, " )
+                }
 
                 time_str : string = get_track_time( int( audio_ctx.cursor ),
-					                                sample_rate )
+						                            sample_rate )
 
-                perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
-				fmt.printfln( "shift more 10 seconds, position %2.3f %%  %s ... ",
+				perc : f64 = f64( audio_ctx.cursor ) / f64( total_samples / 2 )
+				fmt.printf( " position %2.3f %% %s ...",
 				              perc, time_str )
+				fmt.printf( "\n" )
+
+			case 'q', 'Q':
+
+				fmt.printfln( "\n...have a nice rest of day.\n" )
+		        ma.device_uninit( & device )
+
+				when ODIN_OS == .Linux {
+				// when ODIN_OS_tmp == "Linux_tmp" {
+
+					// Reestablishes the normal terminal mode with the enter.
+					posix.tcsetattr( fd, .TCSANOW, & g_old_termios )
+				}
+	            os.exit( 0 )
 			}
 
-		case 'q', 'Q':
 
-			fmt.printfln( "\n...have a nice rest of day.\n" )
-	        ma.device_uninit( & device )
-		    os.exit( 0 )
-		}
+			curr_value_volatile := intrinsics.volatile_load( & g_music_has_ended )
 
-	}
+			if curr_value_volatile == true {
 
+				// Terminates and close the audio device.
+				ma.device_uninit( & device )
 
+				when ODIN_OS == .Linux {
+				// when ODIN_OS_tmp == "Linux_tmp" {
 
+					// Reestablishes the normal terminal mode with the enter.
+					posix.tcsetattr( fd, .TCSANOW, & g_old_termios )
+                }
+
+				fmt.printfln( "\n...music file has ended!\n" )
+
+				os.exit( 0 )
+			}
+
+			time.sleep( 20 * time.Millisecond )
+
+		}   // end if
+
+	}   // end for
+
+	// Terminates and closes the audio device.
 	ma.device_uninit( & device )
 }
 

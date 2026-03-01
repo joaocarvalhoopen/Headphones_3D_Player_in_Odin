@@ -54,6 +54,7 @@ Press each input key or value followed by an enter.
    Press "33" to shift to pos 33 %, can be 2 digits of 01 to 99.
    Press Left Arrow to shift current offset 10 seconds less.
    Press Right Arrow to shift current offset 10 seconds more.
+   Press SPACE to toggle PAUSE or PLAYING.
 ```
 
 ## The audio processing pipeline
